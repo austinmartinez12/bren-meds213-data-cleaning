@@ -1,0 +1,174 @@
+---
+title: "Week 2 - Data Cleaning"
+format: html
+author: "Austin Martinez"
+date: 04/15/2026
+---
+
+```{r}
+# Load in libraries
+library(tidyverse)
+library(here)
+```
+
+```{r}
+# Read in data
+snow_data <- read_csv(here("data/processed/snow_cover.csv"))
+```
+
+## 1. Clean the Water_cover column to transform it into the correct data type and respect expectations for a percentage.
+
+Before I start, I need to see what class the Water_cover is in. The Water_cover should be a numeric, since it is supposed to be a percentage.
+```{r}
+# Check the class of Water_cover column
+print(class(snow_data$Water_cover))
+```
+
+The Water_cover column has the class character. So, I am converting Water_cover to a numeric and counting the values that weren't properly converted to a numeric. I am doing this to see if or what non-numeric values are in the Water_cover column.
+
+```{r}
+# Check for non-numeric values in the Water_cover column
+snow_data %>%
+  count(Water_cover) %>%
+  filter(is.na(as.numeric(Water_cover)))
+```
+I found that my Water_cover column has many of the following non-numeric values: "-, ., n/a, unk, NA". So I am going to need to replace these values with an NA. Since I don't know what value they are supposed to be I have to convert them to a NA value. 
+
+```{r}
+# Convert all "-, ., n/a, unk, NA" values in `Water_cover` to a NA
+snow_data_fixed <- snow_data |>
+  mutate( Water_cover = ifelse(
+      Water_cover %in% c("-", ".", "n/a", "unk", "NA"), NA, Water_cover))
+
+# Check if there are any non-numeric values of Water_cover column of snow_data_fixed
+snow_data_fixed %>%
+  count(Water_cover) %>%
+  filter(is.na(as.numeric(Water_cover)))
+
+# Convert Water_cover column to numeric
+snow_data_fixed <- snow_data_fixed |>
+  mutate(Water_cover = as.numeric(Water_cover))
+```
+Water_cover is supposed to be a percentage, so I need to check if the values are between 0-100.
+```{r}
+# Check if values in Water_cover are between 0-100
+snow_data_fixed |>
+  filter(Water_cover > 100)
+```
+I found a row that has a value of 353 for Water_cover. This value is way too big and I am not sure what the actual value is supposed to be, so I will make it NA.
+```{r}
+# Check if values in Water_cover are between 0-100
+snow_data_fixed <- snow_data_fixed |>
+  mutate(Water_cover = ifelse(Water_cover > 100, NA, Water_cover))
+
+# Check if values in Water_cover are between 0-100
+snow_data_fixed |>
+  filter(Water_cover > 100)
+```
+
+I also need to check that there are no negative values in this column. Luckily there are zero rows with a negative value for Water_cover.
+```{r}
+# Check if values in Water_cover are between 0-100
+snow_data_fixed |>
+  filter(Water_cover < 0)
+```
+
+## 2. Clean the Land_cover column to transform it into the correct data type and respect expectations for a percentage.
+
+Before I start, I need to see what class Land_cover is in. The Land_cover column should be a numeric, since it is supposed to be a percentage.
+
+```{r}
+# Check class of Land_cover column
+print(class(snow_data_fixed$Land_cover))
+```
+
+The Land_cover column has the class character. So, I am converting Land_cover to a numeric and counting the values that weren't properly converted to a numeric. I am doing this to see if or what non-numeric values are in the Land_cover column.
+
+```{r}
+# Check non-numeric values of Land_cover column
+snow_data_fixed %>%
+  count(Land_cover) %>%
+  filter(is.na(as.numeric(Land_cover)))
+```
+I found that my Land_cover column has many of the following non-numeric values: "-, ., n/a, unk, NA". So I am going to need to replace these values with an NA. Since I don't know what value they are supposed to be I have to convert them to a NA value. 
+
+```{r}
+# Convert all "-, ., n/a, unk, NA" values in `Land_cover` to a NA
+snow_data_fixed <- snow_data_fixed |>
+  mutate( Land_cover = ifelse(
+      Land_cover %in% c("-", ".", "n/a", "unk", "NA"), NA, Land_cover))
+
+# Check if there are any non-numeric values of Land_cover column of snow_data_fixed
+snow_data_fixed %>%
+  count(Land_cover) %>%
+  filter(is.na(as.numeric(Land_cover)))
+
+# Convert Land_cover column to numeric
+snow_data_fixed <- snow_data_fixed |>
+  mutate(Land_cover = as.numeric(Land_cover))
+```
+
+Land_cover is supposed to be a percentage, so I need to check if the values are between 0-100.
+
+```{r}
+# Check if values in Land_cover are between 0-100
+snow_data_fixed |>
+  filter(Land_cover > 100)
+```
+
+Luckily there are no values above 100 for Land_cover. So, now I need to check if there are any negative values in Land_cover.
+
+```{r}
+# Check if values in Land_cover are between 0-100
+snow_data_fixed |>
+  filter(Land_cover < 0)
+```
+
+I found 2 rows that have negative values for Land_cover. These values are way too small and I am not sure what the actual value is supposed to be, so I will make them NA.
+
+```{r}
+# Convert negative values to NA
+snow_data_fixed <- snow_data_fixed |>
+  mutate(Land_cover = ifelse(Land_cover < 0, NA, Land_cover))
+
+# Check if values in Land_cover are negative
+snow_data_fixed |>
+  filter(Land_cover < 0)
+```
+
+## 3. Use the relationship that the three cover columns (Snow, Water, Land) should sum up to 100% to infer missing values where possible and recompute the Total_cover column as needed
+
+First, I need to sum up the Snow_cover, Water_cover, and Land_cover columns to recompute the Total_cover column.
+```{r}
+# Recompute Total_cover as the sum of the three cover columns
+snow_data_fixed <- snow_data_fixed |>
+  mutate(Total_cover = Snow_cover + Water_cover + Land_cover)
+```
+
+Looking at the Total_cover column, I can see that not all the values are equal to 100. This is a problem because all values in this column should be equal to 100, since the sum of Snow_cover + Water_cover + Land_cover should be 100. So, I will be filtering out all rows that don't equal 100, since there was clearly an input error of some kind that I can't fix on a case-by-case basis.
+
+```{r}
+snow_data_fixed <- snow_data_fixed |>
+  filter(Total_cover == 100)
+```
+
+To check that everything ran smoothly, I did a check to see if all Total_cover values are equal to 100, and that there are no NAs in the Snow_cover, Water_cover, and Land_cover columns. If there were NAs in those columns, I would want to filter those rows out since I wouldn't know what those values were supposed to actually be.
+
+```{r}
+cat("Are all values in the Total_cover column = 100?:", all(snow_data_fixed$Total_cover == 100, na.rm = TRUE), "\n")
+cat("\n")
+cat("How many NAs are in each column?:\n")
+print(colSums(is.na(snow_data_fixed[c("Snow_cover", "Water_cover", "Land_cover")])))
+```
+
+### Add comments to your quarto document about your decisions and assumptions. This will be a large part of the grading (see below).
+
+```{r}
+# check if the folder exists
+dir.create("data/processed", showWarnings = FALSE)
+
+# write the file
+write_csv(snow_data_fixed, file.path("data/processed", "all_cover_fixed_Austin.csv"))
+```
+
+
